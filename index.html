@@ -2,28 +2,25 @@
 <html>
 <head>
     <style>
-		body {
-			margin: 20px 20px;
+        body {
+            margin: 20px;
+            font-family: Arial, sans-serif;
         }
-		table {
+        table {
             border-collapse: collapse;
             width: 100%;
             margin: 20px 0;
-			border: 1px solid #ddd;
+            border: 1px solid #ddd;
+            table-layout: fixed;
         }
-        td {
-            border: 0px solid #ddd;
+        td, th {
             padding: 12px;
-            text-align: left;
+            border-bottom: 1px solid #ddd;
         }
         th {
-		    /* border: 0px solid #ddd; */
-            padding: 12px;
-			text-align: center;
-			border-bottom: 1px solid #ddd;
             background-color: #f2f2f2;
+            text-align: center;
         }
-        /* 修复列宽设置 */
         th:nth-child(1), td:nth-child(1) { width: 12%; }
         th:nth-child(2), td:nth-child(2) { width: 35%; }
         th:nth-child(3), td:nth-child(3) { width: 15%; }
@@ -31,41 +28,44 @@
         th:nth-child(5), td:nth-child(5) { width: 15%; }
         th:nth-child(6), td:nth-child(6) { width: 8%; }
         
-        /* 对齐修复 */
-        td:nth-child(3),
+        td:nth-child(3) input {
+			text-align: right
+		}
+		
+		td:nth-child(3),
         td:nth-child(4),
         td:nth-child(5) {
-            text-align: right;
             padding-right: 25px;
         }
-		td:nth-child(6) {
+        td:nth-child(6) {
             text-align: center;
-			border-left: 1px solid #ddd;
+            border-left: 1px solid #ddd;
         }
-        input[type="number"],
-        .right-align {
+        input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        input[type="number"] {
             text-align: right;
-            width: 95%;
-            padding: 8px;
-        }
-        input[type="text"] {
-            width: 95%;
-            padding: 8px;
         }
         .total {
             font-size: 18px;
             font-weight: bold;
             margin-top: 20px;
             text-align: right;
-            padding-right: 225px;
+            padding-right: 10%;
         }
         button {
             padding: 8px 15px;
-            background-color: #4CAF50;
+			background-color: #4CAF50;
             color: white;
             border: none;
             cursor: pointer;
             margin: 5px;
+            border-radius: 4px;
         }
         button:hover {
             opacity: 0.9;
@@ -73,11 +73,15 @@
         .export-btn {
             background-color: #2196F3;
         }
+        .clear-btn {
+            background-color: #ff4444;
+        }
     </style>
 </head>
 <body>
     <div>
         <button onclick="addNewRow()">添加新行</button>
+		<button class="clear-btn" onclick="clearConfig()">清空配置</button>
         <button class="export-btn" onclick="exportConfig()">导出配置</button>
         <button class="export-btn" onclick="document.getElementById('fileInput').click()">导入配置</button>
         <input type="file" id="fileInput" hidden accept=".json" onchange="importConfig(this)">
@@ -95,82 +99,122 @@
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td><input type="text" placeholder=""></td>
-                <td><input type="text" placeholder=""></td>
-                <td><input type="text" class="right-align" placeholder=""></td>
-                <td><input type="number" min="0" value="1"></td>
-                <td><input type="number" class="price" min="0" step="1"></td>
-                <td><button onclick="deleteRow(this)">删除</button></td>
-            </tr>
+            <!-- 内容由JavaScript动态加载 -->
         </tbody>
     </table>
 
     <div class="total">总价：￥<span id="totalPrice">0.00</span></div>
 
     <script>
-        // 修复后的JavaScript代码
+        // 初始化事件监听和加载数据
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSavedData();
+            document.querySelectorAll('input').forEach(input => {
+                input.addEventListener('input', handleInputChange);
+            });
+        });
+
+        function handleInputChange() {
+            calculateTotal();
+            saveData();
+        }
+
+        function saveData() {
+            const data = Array.from(document.querySelectorAll('tbody tr')).map(row => ({
+                component: row.cells[0].querySelector('input').value,
+                model: row.cells[1].querySelector('input').value,
+                platform: row.cells[2].querySelector('input').value,
+                quantity: row.cells[3].querySelector('input').value,
+                price: row.cells[4].querySelector('input').value
+            }));
+            localStorage.setItem('pcBuilderData', JSON.stringify(data));
+        }
+
+        function loadSavedData() {
+            try {
+                const savedData = localStorage.getItem('pcBuilderData');
+                const tbody = document.querySelector('tbody');
+                tbody.innerHTML = '';
+
+                (JSON.parse(savedData || '[]')).forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><input value="${item.component || ''}"></td>
+                        <td><input value="${item.model || ''}"></td>
+                        <td><input align="right" value="${item.platform || ''}"></td>
+                        <td><input type="number" value="${item.quantity || 1}" min="0"></td>
+                        <td><input type="number" class="price" value="${item.price || 0}" step="1" min="0"></td>
+                        <td><button onclick="deleteRow(this)">删除</button></td>
+                    `;
+                    tbody.appendChild(row);
+                    row.querySelectorAll('input').forEach(input => {
+                        input.addEventListener('input', handleInputChange);
+                    });
+                });
+                
+                if (!savedData) addNewRow();
+                calculateTotal();
+            } catch (error) {
+                localStorage.removeItem('pcBuilderData');
+                addNewRow();
+            }
+        }
+
         function addNewRow() {
-            const tbody = document.querySelector('#componentsTable tbody');
-            const newRow = document.createElement('tr');
-            
-            newRow.innerHTML = `
-                <td><input type="text" placeholder=""></td>
-                <td><input type="text" placeholder=""></td>
-                <td><input type="text" class="right-align" placeholder=""></td>
+            const tbody = document.querySelector('tbody');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><input type="text"></td>
+                <td><input type="text"></td>
+                <td><input type="text" align="right"></td>
                 <td><input type="number" min="0" value="1"></td>
                 <td><input type="number" class="price" min="0" step="1"></td>
                 <td><button onclick="deleteRow(this)">删除</button></td>
             `;
-
-            tbody.appendChild(newRow);
-            addPriceListeners(newRow);
+            tbody.appendChild(row);
+            row.querySelectorAll('input').forEach(input => {
+                input.addEventListener('input', handleInputChange);
+            });
+            saveData();
         }
 
         function deleteRow(btn) {
-            const row = btn.closest('tr');
-            row.parentNode.removeChild(row);
+            btn.closest('tr').remove();
             calculateTotal();
+            saveData();
+        }
+
+        function clearConfig() {
+            const tbody = document.querySelector('tbody');
+            tbody.innerHTML = '';
+            document.getElementById('totalPrice').textContent = '0.00';
+            localStorage.setItem('pcBuilderData', JSON.stringify([]));
         }
 
         function calculateTotal() {
-            const prices = document.querySelectorAll('.price');
             let total = 0;
-            
-            prices.forEach(input => {
-                const quantity = input.closest('tr').querySelector('input[type="number"]:not(.price)').value;
-                total += parseFloat(input.value || 0) * parseInt(quantity || 1);
+            document.querySelectorAll('tbody tr').forEach(row => {
+                const qty = parseFloat(row.querySelector('td:nth-child(4) input').value) || 1;
+                const price = parseFloat(row.querySelector('.price').value) || 0;
+                total += qty * price;
             });
-            
             document.getElementById('totalPrice').textContent = total.toFixed(2);
         }
 
-        function addPriceListeners(row) {
-            const inputs = row.querySelectorAll('input');
-            inputs.forEach(input => {
-                input.addEventListener('input', calculateTotal);
-            });
-        }
-
-        // 导出/导入功能保持不变
         function exportConfig() {
             const config = {
-                components: [],
-                total: document.getElementById('totalPrice').textContent,
-                timestamp: new Date().toISOString()
-            };
-
-            document.querySelectorAll('#componentsTable tbody tr').forEach(row => {
-                config.components.push({
-                    type: row.cells[0].querySelector('input').value,
+                components: Array.from(document.querySelectorAll('tbody tr')).map(row => ({
+                    component: row.cells[0].querySelector('input').value,
                     model: row.cells[1].querySelector('input').value,
-                    description: row.cells[2].querySelector('input').value,
+                    platform: row.cells[2].querySelector('input').value,
                     quantity: row.cells[3].querySelector('input').value,
                     price: row.cells[4].querySelector('input').value
-                });
-            });
+                })),
+                total: document.getElementById('totalPrice').textContent,
+                exportedAt: new Date().toISOString()
+            };
 
-            const blob = new Blob([JSON.stringify(config, null, 2)], {type: 'application/json'});
+            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -184,38 +228,17 @@
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = (e) => {
                 try {
                     const config = JSON.parse(e.target.result);
-                    const tbody = document.querySelector('#componentsTable tbody');
-                    tbody.innerHTML = '';
-
-                    config.components.forEach(component => {
-                        const newRow = document.createElement('tr');
-                        newRow.innerHTML = `
-                            <td><input type="text" value="${component.type || ''}"></td>
-                            <td><input type="text" value="${component.model || ''}"></td>
-                            <td><input type="text" class="right-align" value="${component.description || ''}"></td>
-                            <td><input type="number" min="0" value="${component.quantity || 0}"></td>
-                            <td><input type="number" class="price" min="0" step="1" value="${component.price || 0}"></td>
-                            <td><button onclick="deleteRow(this)">删除</button></td>
-                        `;
-                        tbody.appendChild(newRow);
-                        addPriceListeners(newRow);
-                    });
-
-                    calculateTotal();
+                    localStorage.setItem('pcBuilderData', JSON.stringify(config.components));
+                    loadSavedData();
                 } catch (error) {
-                    alert('配置文件解析失败: ' + error.message);
+                    alert('无效的配置文件: ' + error.message);
                 }
             };
             reader.readAsText(file);
         }
-
-        // 初始化事件监听
-        document.querySelectorAll('#componentsTable tbody tr').forEach(row => {
-            addPriceListeners(row);
-        });
     </script>
 </body>
 </html>
