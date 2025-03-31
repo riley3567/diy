@@ -194,7 +194,7 @@
         function calculateTotal() {
             let total = 0;
             document.querySelectorAll('tbody tr').forEach(row => {
-                const qty = parseFloat(row.querySelector('td:nth-child(4) input').value) || 1;
+                const qty = parseFloat(row.querySelector('td:nth-child(4) input').value) || 0;
                 const price = parseFloat(row.querySelector('.price').value) || 0;
                 total += qty * price;
             });
